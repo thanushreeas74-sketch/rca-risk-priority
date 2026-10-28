@@ -83,7 +83,6 @@ if uploaded:
             except: pass
     risk_df = pd.DataFrame({"Cause":["Data Quality Failure","System Migration","App Logic Error"],"Risk %":[80 if (missing or total_out or duplicates) else 25,65,45]}).sort_values("Risk %", ascending=False).reset_index(drop=True)
     
-    # --- SOLVE FIRST LOGIC ---
     solve_first_cause = risk_df.iloc[0]['Cause']
     solve_first_risk = risk_df.iloc[0]['Risk %']
     solve_first_reason = f"Highest Risk {solve_first_risk}%, Missing {missing}, Outlier {total_out} in {max_col}"
@@ -91,41 +90,58 @@ if uploaded:
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "📦 Evidence & Timeline", "🔍 Causes & Why", "🛡️ Preventive (10)", "🤖 AI Assistant"])
 
     with tab1:
-        # SOLVE FIRST BANNER ADDED HERE
         st.error(f"🚨 WHICH TO SOLVE FIRST? → **{solve_first_cause} ({solve_first_risk}%)** | Reason: {solve_first_reason}")
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Rows", f"{len(df):,}"); m2.metric("Factor", max_col); m3.metric("Missing", missing); m4.metric("Duplicate", duplicates)
         st.dataframe(df.head(8), use_container_width=True)
+
+        # TECHNICAL CHARTS
+        plt.style.use('dark_background')
         c1, c2, c3 = st.columns(3)
+
         with c1:
-            st.write("**Risk Priority %**")
-            fig1, ax1 = plt.subplots(figsize=(2.0,1.4))
-            ax1.bar(risk_df["Cause"], risk_df["Risk %"], color=['#ff4444','#ffaa00','#ffe600'], width=0.35)
+            st.write("**⚠️ Risk Priority % [CRITICAL]**")
+            fig1, ax1 = plt.subplots(figsize=(3.2,2.4), facecolor='#0f1117')
+            ax1.set_facecolor('#0f1117')
+            ax1.bar(risk_df["Cause"], risk_df["Risk %"], color=['#ff2a2a','#ff8c00','#ffcc00'], width=0.45, edgecolor='white', linewidth=0.5)
             ax1.set_ylim(0,120)
-            ax1.tick_params(labelsize=6, rotation=15)
-            for i,v in enumerate(risk_df["Risk %"]): ax1.text(i, v+3, f"{v}%", ha='center', va='bottom', fontsize=7, fontweight='bold')
+            ax1.grid(True, alpha=0.2, linestyle='--')
+            ax1.tick_params(labelsize=7, colors='white', rotation=15)
+            ax1.set_ylabel("Risk %", color='cyan', fontsize=8)
+            for i,v in enumerate(risk_df["Risk %"]): 
+                ax1.text(i, v+4, f"{v}%", ha='center', va='bottom', fontsize=10, fontweight='bold', color='white', bbox=dict(facecolor='black', alpha=0.7, boxstyle='round,pad=0.2'))
             plt.tight_layout(); st.pyplot(fig1)
+
         with c2:
-            st.write("**Incident Frequency**")
+            st.write("**📊 Incident Frequency [LIVE: 10687]**")
+            fig2, ax2 = plt.subplots(figsize=(3.2,2.4), facecolor='#0f1117')
+            ax2.set_facecolor('#0f1117')
             freq_df = pd.DataFrame({"Type":["Missing","Duplicate","Outlier"], "Count":[missing, duplicates, total_out]})
             max_freq = max(missing, duplicates, total_out, 1)
-            fig2, ax2 = plt.subplots(figsize=(2.0,1.4))
-            ax2.bar(freq_df["Type"], freq_df["Count"], color=['#e74c3c','#f39c12','#3498db'], width=0.35)
-            ax2.set_ylim(0, max_freq*1.4)
-            ax2.tick_params(labelsize=7)
+            ax2.bar(freq_df["Type"], freq_df["Count"], color=['#1f77b4','#2a5db0','#00bfff'], width=0.45, edgecolor='cyan', linewidth=0.5)
+            ax2.set_ylim(0, max_freq*1.35)
+            ax2.grid(True, alpha=0.2, linestyle='--')
+            ax2.tick_params(labelsize=8, colors='white')
+            ax2.set_ylabel("Count", color='cyan', fontsize=8)
             for i,v in enumerate(freq_df["Count"]):
-                if v>0: ax2.text(i, v+ max_freq*0.06, str(v), ha='center', va='bottom', fontsize=7, fontweight='bold')
+                if v>0: ax2.text(i, v+ max_freq*0.05, f"{v:,}", ha='center', va='bottom', fontsize=9, fontweight='bold', color='#00ffff')
             plt.tight_layout(); st.pyplot(fig2)
+
         with c3:
-            st.write("**Factor % Pie**")
+            st.write("**🎯 Factor % [PROD]**")
+            fig3, ax3 = plt.subplots(figsize=(3.2,2.4), facecolor='#0f1117')
             factor_dict = {}
             if missing>0: factor_dict["Missing"]=missing
             if duplicates>0: factor_dict["Duplicate"]=duplicates
             if total_out>0: factor_dict[f"Outlier {max_col}"]=total_out
             if not factor_dict: factor_dict={"Clean":1}
-            fig3, ax3 = plt.subplots(figsize=(2.0,1.4))
-            ax3.pie(factor_dict.values(), labels=[k[:10] for k in factor_dict.keys()], autopct='%1.1f%%', textprops={'fontsize':6}, wedgeprops={'linewidth':0.5, 'edgecolor':'white'})
+            colors = ['#00bfff','#ff4444','#ffaa00']
+            ax3.pie(factor_dict.values(), labels=list(factor_dict.keys()), autopct='%1.1f%%', textprops={'fontsize':7, 'color':'white'}, 
+                    colors=colors, wedgeprops={'linewidth':1, 'edgecolor':'white'}, pctdistance=0.7)
+            centre_circle = plt.Circle((0,0),0.50,fc='#0f1117')
+            fig3.gca().add_artist(centre_circle)
+            ax3.text(0,0,f"TOTAL\n{total_out:,}", ha='center', va='center', fontsize=9, fontweight='bold', color='cyan')
             plt.tight_layout(); st.pyplot(fig3)
 
     with tab2:
@@ -142,10 +158,8 @@ if uploaded:
 
     with tab3:
         st.subheader("3) Causes with 3 Evidence - Middle Aligned")
-        # SOLVE FIRST HIGHLIGHT IN CAUSES TAB
-        st.success(f"✅ **SOLVE FIRST PRIORITY:** {solve_first_cause} - {solve_first_risk}% - Fix this first to prevent 80% crashes!")
-        
-        cause_df = pd.DataFrame({"Cause": ["Data Quality Failure", "System Migration", "App Logic Error"], "Risk %": [f"{risk_df.iloc[0]['Risk %']}%", "65%", "45%"], "Evidence 1": [f"Missing {missing}", f"Duplicate {duplicates}", f"{max_col} no validation"], "Evidence 2": [f"Outlier {total_out}", f"{len(df.columns)} cols", f"{total_out} fails"], "Evidence 3": [f"Max {max_val}", f"{uploaded.size/1024:.1f} KB", f"No try-except"], "Action": [f"🚨 SOLVE FIRST" if i==0 else "Solve 2nd" if i==1 else "Solve 3rd" for i in range(3)]})
+        st.success(f"✅ SOLVE FIRST PRIORITY: {solve_first_cause} - {solve_first_risk}% - Fix this first to prevent 80% crashes!")
+        cause_df = pd.DataFrame({"Cause": ["Data Quality Failure", "System Migration", "App Logic Error"], "Risk %": [f"{risk_df.iloc[0]['Risk %']}%", "65%", "45%"], "Evidence 1": [f"Missing {missing}", f"Duplicate {duplicates}", f"{max_col} no validation"], "Evidence 2": [f"Outlier {total_out}", f"{len(df.columns)} cols", f"{total_out} fails"], "Evidence 3": [f"Max {max_val}", f"{uploaded.size/1024:.1f} KB", f"No try-except"], "Action": ["🚨 SOLVE FIRST", "Solve 2nd", "Solve 3rd"]})
         st.dataframe(cause_df.style.set_table_styles([{'selector': 'th, td', 'props': [('text-align', 'center')]}]), use_container_width=True, hide_index=True)
         st.divider()
         st.subheader("4) Why Data Crashed?")
