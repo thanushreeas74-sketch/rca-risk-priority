@@ -6,49 +6,42 @@ import re
 
 st.set_page_config(page_title="RCA - Root Cause Analysis", layout="wide", page_icon="🔍")
 
-# CSS for attractive design
 st.markdown("""
 <style>
-.upload-box {
-    border: 2px dashed #4CAF50;
-    border-radius: 15px;
-    padding: 20px;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+/* FIX 1: Remove white box - make upload blend with dark theme */
+[data-testid="stFileUploader"] {
+    background: transparent !important;
+    border: none !important;
+}
+[data-testid="stFileUploader"] div {
+    background: linear-gradient(135deg, #2C3E50 0%, #4CA1AF 100%) !important;
+    border: 2px dashed #4CAF50 !important;
+    border-radius: 15px !important;
+    padding: 10px !important;
+}
+[data-testid="stFileUploader"] section {
+    background: transparent !important;
+    border: none !important;
+}
+/* FIX 3: Table middle align */
+[data-testid="stDataFrame"] table, th, td {
+    text-align: center !important;
+    justify-content: center !important;
+}
+div[data-testid="stDataFrame"] {
     text-align: center;
-}
-.metric-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 15px;
-    border-radius: 12px;
-    color: white;
-}
-.chat-bubble-user {
-    background: #DCF8C6;
-    padding: 10px;
-    border-radius: 15px 15px 0px 15px;
-    margin: 5px;
-}
-.chat-bubble-ai {
-    background: #E3F2FD;
-    padding: 10px;
-    border-radius: 15px 15px 15px 0px;
-    margin: 5px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# FIX 1: RCA Full Form CORRECT - Root Cause Analysis (not Risk Priority)
-st.markdown("<h1 style='text-align:center; margin-bottom:0px;'>🔍 RCA - Root Cause Analysis with Risk Priority</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:gray; font-size:13px;'>RCA Full Form = <b>Root Cause Analysis</b> | Workflow: Detect → Collect Evidence → Timeline → Causes with 3 Evidence → Why Crashed → Preventive Actions → AI Assistant</p>", unsafe_allow_html=True)
+# Correct RCA Full Form
+st.markdown("<h2 style='text-align:center; margin-bottom:0px;'>🔍 RCA - Root Cause Analysis with Risk Priority</h2>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:gray; font-size:12px;'>RCA = <b>Root Cause Analysis</b> | Workflow: Detect → Collect Evidence → Timeline → Causes with 3 Evidence → Why Crashed → Preventive Actions → AI Assistant</p>", unsafe_allow_html=True)
 st.divider()
 
-# FIX 2: Upload box attractive, not boring
-st.markdown("### 📤 Upload Your Dataset - Attractive Upload Box")
-with st.container():
-    st.markdown('<div class="upload-box">', unsafe_allow_html=True)
-    uploaded = st.file_uploader("Drag & Drop or Click to Upload - Works for ANY CSV (Bank, College, Hospital, CIDDS, etc.)", type=['csv'], label_visibility="collapsed")
-    st.markdown("**✨ Supports: CIDDS, Bank Transactions, College Data, Hospital, ANY CSV - Auto Detects Issues**")
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("### 📤 Upload Your Dataset")
+uploaded = st.file_uploader("Upload ANY CSV - CIDDS, Bank, College, Hospital", type=['csv'], label_visibility="collapsed")
+st.caption("✨ Supports: CIDDS, Bank Transactions, College Data, Hospital, ANY CSV - Auto Detects Issues")
 
 def get_real_answer(user_q, df, filename, missing, duplicates, total_out, max_col, max_val, risk_df, outlier_details):
     q = user_q.lower().strip()
@@ -57,34 +50,32 @@ def get_real_answer(user_q, df, filename, missing, duplicates, total_out, max_co
     def has_any(keys): return any(k in q for k in keys)
     def has_word(w): return w in words
     if q in ["hi","hello","hey"] or (has_word("hello") and len(words)<4):
-        return f"Hello! 👋 I analyzed **{filename}** - {rows} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}. Ask me anything like ChatGPT!"
-    if has_any(["which should i solve first", "which to solve first", "solve first", "first priority"]):
-        return f"🚨 **Solve FIRST = {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%**\n\nFor {filename}: Missing {missing}, Duplicate {duplicates}, Outlier {total_out} in {max_col} Max {max_val} - Highest risk, P0 TODAY"
-    if has_any(["how many times", "frequency", "times crashed"]):
-        return f"📊 **Frequency for {filename}:** Missing {missing} times, Duplicate {duplicates} times, Outlier {total_out} times in {max_col}. Total {missing+duplicates+total_out}"
+        return f"Hello! 👋 I analyzed **{filename}** - {rows} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}."
+    if has_any(["which should i solve first", "which to solve first", "solve first"]):
+        return f"🚨 **Solve FIRST = {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%** - {filename}: Missing {missing}, Outlier {total_out} in {max_col} Max {max_val} - P0 TODAY"
+    if has_any(["how many times", "frequency"]):
+        return f"📊 Frequency {filename}: Missing {missing}, Duplicate {duplicates}, Outlier {total_out} in {max_col}"
     if has_any(["collect evidence", "evidence"]):
-        return f"📦 **Real Evidence from {filename}:**\n1. Missing {missing}\n2. Duplicate {duplicates}\n3. Outlier {total_out} in {max_col} Max {max_val}"
-    if has_any(["timeline", "before", "during", "after"]):
-        return f"⏰ **Timeline for {filename}:**\n• Before: {rows} rows normal\n• During: {total_out} outliers, Max {max_val}\n• After: Crashed - Missing {missing}, Duplicate {duplicates}"
-    if has_any(["causes", "cause with", "3 evidence"]):
-        return f"🔍 **Causes with 3 Evidence:**\n1. Data Quality - Missing {missing}, Outlier {total_out}, Max {max_val}\n2. System Migration - Dup {duplicates}, {len(df.columns)} cols, size {uploaded.size/1024:.1f}KB\n3. App Logic - {max_col} fail, {total_out} times break, no validation"
-    if has_any(["why data crashed", "why crashed", "why crash"]):
-        return f"💥 **Why Crashed {filename}:** {max_col} extreme {max_val} - {total_out} times. System can't handle {max_val}, so crash!"
+        return f"📦 Real Evidence {filename}: Missing {missing}, Dup {duplicates}, Outlier {total_out} in {max_col} Max {max_val}"
+    if has_any(["timeline"]):
+        return f"⏰ Timeline {filename}: Before {rows} rows normal, During {total_out} outliers Max {max_val}, After crashed"
+    if has_any(["causes", "3 evidence"]):
+        return f"🔍 Causes: Data Quality - Missing {missing}, Outlier {total_out}, Max {max_val} | System - Dup {duplicates} | App - {max_col} fail"
+    if has_any(["why data crashed", "why crashed"]):
+        return f"💥 Why Crashed: {max_col} extreme {max_val} - {total_out} times, system can't handle"
     if "missing" in q and "detail" in q:
         miss = df.isnull().sum(); miss = miss[miss>0].to_dict()
-        return f"📭 Missing Details: Total {missing}, Per col {miss}" if missing>0 else f"✅ No Missing in {filename}"
+        return f"📭 Missing: {missing}, {miss}" if missing>0 else "✅ No Missing"
     if "outlier" in q and "detail" in q:
-        return f"⚠️ Outlier Details: {max_col} Count {total_out} Max {max_val} All: {outlier_details}"
+        return f"⚠️ Outlier: {max_col} {total_out} Max {max_val} {outlier_details}"
     if has_any(["file size", "file info"]):
         kb = uploaded.size/1024 if hasattr(uploaded, 'size') else 0
         return f"📁 {filename}: {rows} rows, {len(df.columns)} cols, {kb:.1f} KB"
-    if has_any(["preventive", "prevent", "actions"]):
-        return f"🛡️ **10 Preventive Actions for {filename}:**\n1. df.isnull().sum() → {missing}\n2. drop_duplicates → {duplicates}\n3. IQR filter {max_col} → {total_out}\n4. Alert if max > {max_val*0.8}\n5. Try-except\n6. Validation before insert\n7. Size check > {int(rows*1.5)}\n8. Log extreme\n9. Daily auto-clean\n10. Real-time dashboard alert"
-    if has_any(["summary", "overview"]):
-        return f"📋 Summary {filename}: {rows} rows, Missing {missing}, Dup {duplicates}, Outlier {total_out} in {max_col} Max {max_val}, Risk {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%"
+    if has_any(["preventive", "prevent"]):
+        return f"🛡️ 10 Preventive: check missing {missing}, dup {duplicates}, IQR {max_col} {total_out}, alert max {max_val*0.8}, try-except, size check, daily clean, backup, log, real-time alert"
     if has_any(["what is rca", "rca full form"]):
-        return f"**RCA Full Form = Root Cause Analysis.** Not Risk Priority! Risk Priority is part of RCA. RCA means finding WHY data crashed. For {filename}, RCA found {max_col} Max {max_val} with {total_out} outliers is Root Cause."
-    return f"🤖 For {filename} - '{user_q}': {rows} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}, Risk {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%. Ask: timeline? causes? why crashed? preventive?"
+        return f"**RCA = Root Cause Analysis** - Finding WHY crashed. For {filename}, root cause {max_col} Max {max_val} {total_out} outliers"
+    return f"🤖 For {filename} '{user_q}': {rows} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}, Risk {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%"
 
 if uploaded:
     df = pd.read_csv(uploaded, low_memory=False)
@@ -115,36 +106,37 @@ if uploaded:
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "📦 Evidence & Timeline", "🔍 Causes & Why", "🛡️ Preventive (10)", "🤖 AI Assistant"])
 
     with tab1:
-        # FIX 2: Dashboard attractive - colored metrics
-        st.markdown("### 🎨 Attractive Dashboard - Overview of THIS File")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("📄 Total Rows", f"{len(df):,}", delta="From File")
-        m2.metric("⚠️ Main Factor", max_col, delta=f"{total_out} outliers")
-        m3.metric("📭 Missing", missing, delta="Evidence", delta_color="inverse")
-        m4.metric("📑 Duplicate", duplicates, delta="Evidence", delta_color="inverse")
-        
-        st.divider()
+        m1.metric("📄 Rows", f"{len(df):,}")
+        m2.metric("⚠️ Factor", max_col)
+        m3.metric("📭 Missing", missing)
+        m4.metric("📑 Duplicate", duplicates)
         st.dataframe(df.head(8), use_container_width=True)
         
-        # FIX 3: Charts little bit smaller + percentage for pie
-        st.markdown("#### 📊 Charts - Small Size + Pie %")
+        st.markdown("#### 📊 Charts - Thin & No Line Cross")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.write("**Risk Priority %**")
-            fig1, ax1 = plt.subplots(figsize=(2.5,1.6))  # MORE SMALL
-            ax1.bar(risk_df["Cause"], risk_df["Risk %"], color=['#ff4444','#ffaa00','#ffe600'])
-            ax1.set_ylim(0,100)
+            # FIX 2: Make charts little thin + fix 10687 line cross
+            fig1, ax1 = plt.subplots(figsize=(2.2,1.5))
+            bars1 = ax1.bar(risk_df["Cause"], risk_df["Risk %"], color=['#ff4444','#ffaa00','#ffe600'], width=0.4) # thin width 0.4
+            ax1.set_ylim(0,115) # more space for label not cross line
             ax1.tick_params(labelsize=6, rotation=15)
-            for i,v in enumerate(risk_df["Risk %"]): ax1.text(i, v+2, f"{v}%", ha='center', fontsize=8, fontweight='bold')
+            for i,v in enumerate(risk_df["Risk %"]):
+                ax1.text(i, v+4, f"{v}%", ha='center', va='bottom', fontsize=7, fontweight='bold') # va bottom, higher
             plt.tight_layout()
             st.pyplot(fig1)
         with c2:
             st.write("**Incident Frequency**")
             freq_df = pd.DataFrame({"Type":["Missing","Duplicate","Outlier"], "Count":[missing, duplicates, total_out]})
-            fig2, ax2 = plt.subplots(figsize=(2.5,1.6))  # MORE SMALL
-            ax2.bar(freq_df["Type"], freq_df["Count"], color=['#e74c3c','#f39c12','#3498db'])
+            max_freq = max(missing, duplicates, total_out, 1)
+            fig2, ax2 = plt.subplots(figsize=(2.2,1.5))
+            bars2 = ax2.bar(freq_df["Type"], freq_df["Count"], color=['#e74c3c','#f39c12','#3498db'], width=0.4) # thin
+            ax2.set_ylim(0, max_freq*1.3) # 30% extra space so 10687 not cross line
             ax2.tick_params(labelsize=7)
-            for i,v in enumerate(freq_df["Count"]): ax2.text(i, v+0.3, str(v), ha='center', fontsize=8, fontweight='bold')
+            for i,v in enumerate(freq_df["Count"]):
+                if v>0:
+                    ax2.text(i, v+ max_freq*0.05, str(v), ha='center', va='bottom', fontsize=7, fontweight='bold') # not crossing
             plt.tight_layout()
             st.pyplot(fig2)
         with c3:
@@ -155,110 +147,80 @@ if uploaded:
             if total_out>0: factor_dict[f"Outlier {max_col}"]=total_out
             if not factor_dict: factor_dict={"Clean":1}
             total_f = sum(factor_dict.values())
-            fig3, ax3 = plt.subplots(figsize=(2.5,1.6))  # MORE SMALL
-            # Give percentage for pie chart also - FIX
-            wedges, texts, autotexts = ax3.pie(factor_dict.values(), labels=factor_dict.keys(), autopct='%1.1f%%', textprops={'fontsize':6})
+            fig3, ax3 = plt.subplots(figsize=(2.2,1.5))
+            wedges, texts, autotexts = ax3.pie(factor_dict.values(), labels=[k[:12] for k in factor_dict.keys()], autopct='%1.1f%%', textprops={'fontsize':6}, wedgeprops={'linewidth':0.5, 'edgecolor':'white'})
             for autotext in autotexts:
                 autotext.set_color('white')
                 autotext.set_fontweight('bold')
+                autotext.set_fontsize(7)
             plt.tight_layout()
             st.pyplot(fig3)
-            # Show percentage text also below
             for k,v in factor_dict.items():
                 st.caption(f"{k}: {v} ({v/total_f*100:.1f}%)")
 
     with tab2:
-        st.subheader("1) Collect Evidence - Real Evidence from YOUR File")
+        st.subheader("1) Collect Evidence - Real Evidence")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Missing Evidence", missing)
-        c2.metric("Duplicate Evidence", duplicates)
+        c1.metric("Missing", missing)
+        c2.metric("Duplicate", duplicates)
         c3.metric(f"Outlier {max_col}", total_out)
         if outlier_details:
             out_df = pd.DataFrame.from_dict(outlier_details, orient='index', columns=['Count','Max Value'])
-            st.dataframe(out_df, use_container_width=True)
+            # FIX 3: Middle align
+            st.dataframe(out_df.style.set_table_styles([{'selector': 'th, td', 'props': [('text-align', 'center')]}]), use_container_width=True)
+        
         st.divider()
         st.subheader("2) Timeline: Before / During / After")
         timeline_df = pd.DataFrame({
             "Stage": ["Before", "During", "After"],
-            "What Happened": [
-                f"File had {len(df)} rows, {max_col} normal",
-                f"{total_out} outliers, Max {max_val} in {max_col}",
-                f"Crashed - Missing {missing}, Dup {duplicates}, Outlier {total_out}"
-            ],
+            "What Happened": [f"File had {len(df)} rows, {max_col} normal", f"{total_out} outliers, Max {max_val} in {max_col}", f"Crashed - Missing {missing}, Dup {duplicates}, Outlier {total_out}"],
             "Evidence": [f"{len(df.columns)} cols", f"Max {max_col}={max_val}", f"Total {missing+duplicates+total_out}"]
         })
-        st.dataframe(timeline_df, use_container_width=True, hide_index=True)
+        st.dataframe(timeline_df.style.set_table_styles([{'selector': 'th, td', 'props': [('text-align', 'center')]}]), use_container_width=True, hide_index=True)
 
     with tab3:
         st.subheader("3) Causes with 3 Evidence Each")
-        st.markdown(f"**Cause 1: Data Quality Failure {risk_df.iloc[0]['Risk %']}%**")
-        st.write(f"- Ev1: Missing {missing} | Ev2: Outlier {total_out} in {max_col} | Ev3: Max {max_val}")
-        st.markdown(f"**Cause 2: System Migration 65%**")
-        st.write(f"- Ev1: Dup {duplicates} | Ev2: {len(df.columns)} cols | Ev3: {uploaded.size/1024:.1f} KB")
-        st.markdown(f"**Cause 3: App Logic Error 45%**")
-        st.write(f"- Ev1: {max_col} no validation for {max_val} | Ev2: {total_out} logic fails | Ev3: No try-except")
+        cause_df = pd.DataFrame({
+            "Cause": ["Data Quality Failure", "System Migration", "App Logic Error"],
+            "Risk %": [f"{risk_df.iloc[0]['Risk %']}%", "65%", "45%"],
+            "Evidence 1": [f"Missing {missing}", f"Duplicate {duplicates}", f"{max_col} no validation"],
+            "Evidence 2": [f"Outlier {total_out} in {max_col}", f"{len(df.columns)} cols", f"{total_out} fails"],
+            "Evidence 3": [f"Max {max_val} extreme", f"{uploaded.size/1024:.1f} KB", f"No try-except"]
+        })
+        st.dataframe(cause_df.style.set_table_styles([{'selector': 'th, td', 'props': [('text-align', 'center')]}]), use_container_width=True, hide_index=True)
         st.divider()
         st.subheader("4) Why Data Crashed?")
-        st.error(f"Because {max_col} has extreme {max_val} - {total_out} outliers! System can't handle {max_val}, crashed {total_out} times.")
+        st.error(f"Because {max_col} has extreme {max_val} - {total_out} outliers! System can't handle {max_val}")
 
     with tab4:
-        st.subheader("5) Preventive Actions - 10 Actions")
+        st.subheader("5) Preventive Actions - 10 Actions - Middle Aligned")
         prevent_df = pd.DataFrame({
             "No": list(range(1,11)),
-            "Action": [
-                f"Check missing: df.isnull().sum() → {missing}",
-                f"Remove dup: df.drop_duplicates() → {duplicates}",
-                f"IQR filter {max_col} → {total_out} outliers",
-                f"Validation: if max > {max_val*0.8}: Alert",
-                f"Try-except for {max_col}",
-                f"Size alert if rows > {int(len(df)*1.5)}",
-                f"Daily auto-clean pipeline",
-                f"Backup before migration",
-                f"Log extreme {max_col} > {max_val*0.5}",
-                f"Real-time dashboard alert"
-            ]
+            "Preventive Action": [f"Check missing df.isnull().sum() → {missing}", f"Remove dup df.drop_duplicates() → {duplicates}", f"IQR filter {max_col} → {total_out}", f"Validation if max > {max_val*0.8}: Alert", f"Try-except for {max_col}", f"Size alert > {int(len(df)*1.5)} rows", f"Daily auto-clean pipeline", f"Backup before migration", f"Log extreme > {max_val*0.5}", f"Real-time dashboard alert"],
+            "Fixes": [f"{missing}", f"{duplicates}", f"{total_out}", f"Max {max_val}", "Crash", "Size", "Daily", "Safe", "Audit", "Real-time"]
         })
-        st.dataframe(prevent_df, use_container_width=True, hide_index=True)
-        st.success(f"Apply 10 steps → 0 crashes for {uploaded.name}! Fixes {missing+duplicates+total_out} issues.")
+        # FIX 3: Middle align 4th sheet also
+        st.dataframe(prevent_df.style.set_table_styles([{'selector': 'th, td', 'props': [('text-align', 'center'), ('vertical-align', 'middle')]}]), use_container_width=True, hide_index=True)
+        st.success(f"Apply 10 steps → 0 crashes for {uploaded.name}!")
 
     with tab5:
-        # FIX 4: AI Assistant good, not boring + Clear Chat option
-        st.markdown("### 🤖 AI Assistant - ChatGPT Like, With Clear Chat")
-        st.info("💡 **Ask:** collect evidence? timeline? causes? why crashed? preventive? what is rca? which to solve first?")
-        
+        st.markdown("### 🤖 AI Assistant - With Clear Chat")
         col_chat1, col_chat2 = st.columns([3,1])
         with col_chat2:
-            st.markdown("**Options**")
             if st.button("🗑️ Clear Chat", use_container_width=True, type="primary"):
-                st.session_state.messages = [{"role":"assistant","content":f"Chat cleared! 👋 I analyzed **{uploaded.name}** - {len(df)} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}. Ask again!"}]
+                st.session_state.messages = [{"role":"assistant","content":f"Chat cleared! 👋 {uploaded.name} - {len(df)} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}"}]
                 st.rerun()
-            if st.button("📋 Copy Summary", use_container_width=True):
-                st.toast(f"Summary: {uploaded.name} {len(df)} rows, Missing {missing}, Outlier {total_out} in {max_col}")
-        
         with col_chat1:
             if "messages" not in st.session_state:
-                st.session_state.messages = [{"role":"assistant","content":f"Hello! 👋 I'm your **RCA (Root Cause Analysis) AI Assistant** - Real like ChatGPT!\n\nI analyzed **{uploaded.name}**:\n- {len(df)} rows\n- Missing {missing}, Duplicate {duplicates}\n- Outlier {total_out} in {max_col} Max {max_val}\n- Top Risk {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%\n\n**Ask me anything:** collect evidence? timeline? causes with 3 evidence? why crashed? preventive actions? what is rca?"}]
-            
-            # Chat bubbles attractive
+                st.session_state.messages = [{"role":"assistant","content":f"Hello! 👋 RCA = Root Cause Analysis AI!\n{uploaded.name}: {len(df)} rows, Missing {missing}, Outlier {total_out} in {max_col} Max {max_val}\nAsk: collect evidence? timeline? causes? why crashed? preventive?"}]
             for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-            
-            if prompt := st.chat_input("Ask like ChatGPT: what is rca? timeline? preventive?"):
+                with st.chat_message(msg["role"]): st.markdown(msg["content"])
+            if prompt := st.chat_input("Ask like ChatGPT..."):
                 st.session_state.messages.append({"role":"user","content":prompt})
-                with st.chat_message("user"):
-                    st.markdown(prompt)
+                with st.chat_message("user"): st.markdown(prompt)
                 ans = get_real_answer(prompt, df, uploaded.name, missing, duplicates, total_out, max_col, max_val, risk_df, outlier_details)
-                with st.chat_message("assistant"):
-                    st.markdown(ans)
+                with st.chat_message("assistant"): st.markdown(ans)
                 st.session_state.messages.append({"role":"assistant","content":ans})
 
 else:
-    # Attractive empty state
-    st.markdown("""
-    <div style='text-align:center; padding:30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:20px; color:white;'>
-    <h2>👋 Welcome to RCA Tool</h2>
-    <p>Root Cause Analysis = Finding WHY data crashed</p>
-    <p>Upload ANY CSV to see Evidence, Timeline, Causes, Why, Preventive, AI Chatbot</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.info("Upload CSV to see Evidence, Timeline, Causes, Why, Preventive, AI Chatbot")
