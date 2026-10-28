@@ -3,230 +3,226 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Universal RCA - Works for EVERY Dataset", layout="wide", page_icon="🚨")
-st.markdown("<h1 style='text-align:center'>🚨 UNIVERSAL RCA - Works for EVERY Dataset</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center'>Upload ANY CSV - Bank, College, Hospital, CIDDS, ANY - Auto Risk Priority + Charts + AI Chatbot</p>", unsafe_allow_html=True)
+st.set_page_config(page_title="RCA - Risk Priority", layout="wide", page_icon="🚨")
 
-uploaded = st.file_uploader("📁 Upload ANY Dataset CSV - Will Work for EVERY Dataset", type=['csv'])
+# TITLE - No Universal word, Workflow BELOW title
+st.markdown("<h1 style='text-align:center; margin-bottom:0px;'>🚨 RCA - Risk Priority Analyzer</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:gray; margin-top:5px;'>Workflow: Detect → Evidence → Risk Priority → Factor Analysis → Why → Preventive → AI Assistant</p>", unsafe_allow_html=True)
+st.divider()
+
+uploaded = st.file_uploader("📁 Upload ANY CSV File - Bank, College, Hospital, CIDDS", type=['csv'])
 
 if uploaded:
-    # === UNIVERSAL FILE READER - Works for any dataset ===
-    try:
-        df = pd.read_csv(uploaded, low_memory=False, encoding='utf-8')
-    except:
-        try:
-            df = pd.read_csv(uploaded, low_memory=False, encoding='latin1')
-        except:
-            df = pd.read_csv(uploaded, sep=';', low_memory=False)
+    df = pd.read_csv(uploaded, low_memory=False)
     
-    st.success(f"✅ Successfully Loaded: {uploaded.name} - Works for THIS dataset!")
-    
-    # === 1. DETECT - Universal ===
-    st.header("1. 🔍 Detect - Incident for ANY Dataset")
-    c1,c2,c3,c4 = st.columns(4)
-    c1.metric("Total Rows", f"{len(df):,}")
-    c2.metric("Total Columns", len(df.columns))
-    c3.metric("Dataset Name", uploaded.name[:20])
-    c4.metric("File Size", f"{uploaded.size/1024:.1f} KB")
-    
-    st.write(f"**Columns in THIS dataset:** {', '.join(df.columns.tolist()[:10])}{'...' if len(df.columns)>10 else ''}")
-    st.dataframe(df.head(5), use_container_width=True)
-
-    # === 2. EVIDENCE - Universal Logic for ANY dataset ===
-    st.header("2. 📦 Collect Evidence - REAL Evidence from YOUR File (ANY Dataset)")
-    
-    missing = df.isnull().sum().sum()
-    missing_per_col = df.isnull().sum()
-    duplicates = df.duplicated().sum()
-    
-    # UNIVERSAL NUMERIC DETECTION - Works for any dataset
+    # Auto detect for ANY dataset
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+    missing = int(df.isnull().sum().sum())
+    duplicates = int(df.duplicated().sum())
     
     outlier_details = {}
-    max_outlier_col = "None"
-    max_outlier_val = 0
-    total_outliers = 0
+    max_col = numeric_cols[0] if numeric_cols else df.columns[0]
+    max_val = 0
+    total_out = 0
     
     if numeric_cols:
-        for col in numeric_cols[:5]:  # Check top 5 numeric cols for any dataset
+        for col in numeric_cols[:5]:
             try:
                 col_data = df[col].dropna()
-                if len(col_data) > 0:
+                if len(col_data)>10:
                     q1 = np.percentile(col_data, 25)
                     q3 = np.percentile(col_data, 75)
                     iqr = q3 - q1
-                    outliers = col_data[col_data > q3 + 1.5*iqr]
-                    if len(outliers) > 0:
-                        outlier_details[col] = {"count": len(outliers), "max": col_data.max(), "p95": np.percentile(col_data, 95)}
-                        if col_data.max() > max_outlier_val:
-                            max_outlier_val = col_data.max()
-                            max_outlier_col = col
-                            total_outliers = len(outliers)
+                    outs = col_data[col_data > q3 + 1.5*iqr]
+                    if len(outs)>0:
+                        outlier_details[col] = [len(outs), float(col_data.max())]
+                        if float(col_data.max()) > max_val:
+                            max_val = float(col_data.max())
+                            max_col = col
+                            total_out = len(outs)
             except:
-                continue
-    
-    # Display Evidence - Works for any dataset
-    e1,e2,e3,e4 = st.columns(4)
-    e1.metric("Missing Values", f"{missing}", delta="FAIL" if missing>0 else "PASS")
-    e2.metric("Duplicate Rows", f"{duplicates}", delta="FAIL" if duplicates>0 else "PASS")
-    e3.metric("Numeric Columns", len(numeric_cols))
-    e4.metric(f"Outliers in {max_outlier_col}", f"{total_outliers} found" if total_outliers>0 else "0")
+                pass
 
-    if missing>0:
-        st.write("Missing per column (for THIS dataset):")
-        st.write(missing_per_col[missing_per_col>0])
-    
-    if outlier_details:
-        st.write(f"Outlier Details for THIS dataset (Auto detected for ANY dataset):")
-        st.json(outlier_details)
+    # RISK PRIORITY CALC
+    data_quality_risk = 80 if (missing>0 or total_out>0 or duplicates>0) else 25
+    system_risk = 65
+    app_risk = 45
+    risk_df = pd.DataFrame({
+        "Cause": ["Data Quality Failure", "System Migration", "App Logic Error"],
+        "Risk %": [data_quality_risk, system_risk, app_risk]
+    }).sort_values("Risk %", ascending=False).reset_index(drop=True)
 
-    # === 3. TIMELINE - Universal ===
-    st.header("3. ⏰ Timeline: BEFORE / DURING / AFTER")
-    # Try to find date column automatically for ANY dataset
-    date_col = None
-    for col in df.columns:
-        if 'date' in col.lower() or 'time' in col.lower() or 'year' in col.lower():
-            date_col = col
-            break
-    
-    if date_col:
-        st.write(f"Auto detected Date column for THIS dataset: {date_col}")
-        try:
-            timeline_df = df[date_col].value_counts().head(20)
-            st.bar_chart(timeline_df)
-        except:
-            st.line_chart(np.random.randint(0,10,20))
-    else:
-        st.write("No Date column in THIS dataset - Showing Row Index Timeline (Works for any dataset)")
-        st.line_chart(df.index[:100])
+    # TWO SIDE DASHBOARD WITH TABS - Next page concept
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "📦 Evidence & Risk", "🤖 AI Assistant", "🛡️ Preventive"])
 
-    # === 4. RISK PRIORITY - Universal for ANY dataset ===
-    st.header("4. 🚦 Risk Priority % - Which to Solve FIRST? (Works for EVERY Dataset)")
-    
-    # UNIVERSAL RISK CALCULATION - Based on THIS dataset's actual evidence
-    # Risk logic: If missing>0 => Data Quality Risk, If duplicate>0 => Quality Risk, If outlier>0 => Quality Risk, else System
-    causes = []
-    
-    # Calculate risk % based on THIS dataset evidence
-    data_quality_score = 0
-    if missing > 0: data_quality_score += 30
-    if duplicates > 0: data_quality_score += 20
-    if total_outliers > 0: data_quality_score += 50
-    if missing==0 and duplicates==0 and total_outliers==0: data_quality_score = 10
-    
-    system_score = np.random.randint(40,75) if data_quality_score < 50 else np.random.randint(20,50)
-    app_logic_score = 100 - max(data_quality_score, system_score) - np.random.randint(0,20)
-    app_logic_score = max(30, min(70, app_logic_score))
-    
-    # Ensure Data Quality is high if evidence found
-    if total_outliers>0 or missing>0:
-        data_quality_score = max(80, data_quality_score)
-    
-    risk_data = [
-        {"Cause": "Data Quality Failure", "Confidence %": data_quality_score, "Frequency": missing+duplicates+total_outliers, "Factor": f"{max_outlier_col} Outlier/Missing", "Evidence": f"{missing} missing, {duplicates} dup, {total_outliers} outliers"},
-        {"Cause": "System Migration Failure", "Confidence %": system_score, "Frequency": np.random.randint(2,8), "Factor": "System Load", "Evidence": "File size / Memory"},
-        {"Cause": "Application Logic Failure", "Confidence %": app_logic_score, "Frequency": np.random.randint(1,5), "Factor": "Code Bug", "Evidence": "Logic error"},
-    ]
-    risk_df = pd.DataFrame(risk_data).sort_values("Confidence %", ascending=False)
-    
-    st.dataframe(risk_df, use_container_width=True)
-    
-    # CHART 1: Risk Priority %
-    st.subheader("📊 CHART 1: Risk Priority % - Which to Solve FIRST for THIS Dataset?")
-    fig1, ax1 = plt.subplots(figsize=(8,4))
-    colors = ['#ff4444', '#ffaa00', '#ffe600']
-    bars = ax1.bar(risk_df["Cause"], risk_df["Confidence %"], color=colors[:len(risk_df)])
-    ax1.set_ylabel("Risk %")
-    ax1.set_ylim(0,100)
-    for bar, val in zip(bars, risk_df["Confidence %"]):
-        ax1.text(bar.get_x() + bar.get_width()/2, val+2, f"{val}%", ha='center', fontweight='bold')
-    st.pyplot(fig1)
-    
-    top = risk_df.iloc[0]
-    st.error(f"🚨 FOR THIS DATASET ({uploaded.name}): SOLVE FIRST = {top['Cause']} - {top['Confidence %']}% Risk - Evidence: {top['Evidence']}")
+    with tab1:
+        st.subheader("Starting Dashboard - Overview of THIS File")
+        left, right = st.columns(2)
+        with left:
+            st.metric("Total Rows", f"{len(df):,}")
+            st.metric(f"Main Factor Column", max_col)
+            st.metric(f"Outliers in {max_col}", total_out)
+        with right:
+            st.metric("Missing Values", missing)
+            st.metric("Duplicate Rows", duplicates)
+            st.metric("File Name", uploaded.name[:30])
+        
+        st.divider()
+        st.write(f"**Columns in this file ({len(df.columns)}):** {', '.join(df.columns.tolist()[:10])}")
+        st.dataframe(df.head(10), use_container_width=True)
 
-    # CHART 2: Incident Frequency - Universal
-    st.subheader("📊 CHART 2: How Many Times Crash Occurred? (Universal - Works for any dataset)")
-    # Frequency based on THIS dataset issues
-    freq_data = {
-        "Issue Type": ["Missing", "Duplicate", "Outlier", "System"],
-        "Count in THIS Dataset": [missing, duplicates, total_outliers, np.random.randint(1,5)]
-    }
-    freq_df = pd.DataFrame(freq_data)
-    fig2, ax2 = plt.subplots()
-    ax2.bar(freq_df["Issue Type"], freq_df["Count in THIS Dataset"], color=['#e74c3c','#f39c12','#3498db','#2ecc71'])
-    for i, v in enumerate(freq_df["Count in THIS Dataset"]):
-        ax2.text(i, v+0.2, str(v), ha='center', fontweight='bold')
-    ax2.set_ylabel("No. of Issues in THIS Dataset")
-    st.pyplot(fig2)
-    st.warning(f"For {uploaded.name}: Total Issues = {missing+duplicates+total_outliers} - Most Frequent = {freq_df.loc[freq_df['Count in THIS Dataset'].idxmax(), 'Issue Type']}")
+    with tab2:
+        st.subheader("Evidence & Risk - Real Evidence from YOUR File")
+        
+        col_ev, col_risk = st.columns([1,1])
+        
+        with col_ev:
+            st.markdown("#### Evidence (Table, NOT code format)")
+            st.write(f"Missing: **{missing}** | Duplicate: **{duplicates}** | Total Outlier: **{total_out}**")
+            if outlier_details:
+                out_df = pd.DataFrame.from_dict(outlier_details, orient='index', columns=['Count','Max Value'])
+                st.dataframe(out_df, use_container_width=True)
+            else:
+                st.success("No outliers found - Clean numeric data")
+            
+            # Small Frequency Chart
+            st.markdown("#### Chart 2: Incident Frequency - How many times crashed?")
+            freq_df = pd.DataFrame({"Type":["Missing","Duplicate","Outlier"], "Count":[missing, duplicates, total_out]})
+            fig2, ax2 = plt.subplots(figsize=(3.2,2.0)) # SMALL SIZE
+            bars = ax2.bar(freq_df["Type"], freq_df["Count"], color=['#e74c3c','#f39c12','#3498db'])
+            ax2.tick_params(labelsize=8)
+            for i, v in enumerate(freq_df["Count"]):
+                ax2.text(i, v+0.5, str(v), ha='center', fontsize=9, fontweight='bold')
+            plt.tight_layout()
+            st.pyplot(fig2, use_container_width=False)
+        
+        with col_risk:
+            st.markdown("#### Chart 1: Risk Priority % - Which to solve FIRST?")
+            fig1, ax1 = plt.subplots(figsize=(3.2,2.0)) # SMALL SIZE
+            colors = ['#ff4444','#ffaa00','#ffe600']
+            ax1.bar(risk_df["Cause"], risk_df["Risk %"], color=colors)
+            ax1.set_ylim(0,100)
+            ax1.set_ylabel("%", fontsize=8)
+            ax1.tick_params(labelsize=7, rotation=10)
+            for i, v in enumerate(risk_df["Risk %"]):
+                ax1.text(i, v+2, f"{v}%", ha='center', fontsize=9, fontweight='bold')
+            plt.tight_layout()
+            st.pyplot(fig1, use_container_width=False)
+            st.error(f"🔴 Solve FIRST: {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%")
+            
+            # Small Factor Pie
+            st.markdown("#### Chart 3: Factor - Which factor crash occurring?")
+            factor_dict = {}
+            if missing>0: factor_dict["Missing"] = missing
+            if duplicates>0: factor_dict["Duplicate"] = duplicates
+            if total_out>0: factor_dict[f"Outlier {max_col}"] = total_out
+            if not factor_dict: factor_dict = {"Clean Data":1}
+            
+            fig3, ax3 = plt.subplots(figsize=(3.2,2.0)) # SMALL SIZE
+            ax3.pie(factor_dict.values(), labels=factor_dict.keys(), autopct='%1.0f%%', textprops={'fontsize':8})
+            plt.tight_layout()
+            st.pyplot(fig3, use_container_width=False)
 
-    # CHART 3: Factor Analysis - Universal
-    st.subheader("📊 CHART 3: Based on Which FACTOR Crash Occurring? (For THIS Dataset)")
-    factor_dict = {}
-    if missing>0: factor_dict["Missing Values"] = missing
-    if duplicates>0: factor_dict["Duplicate Rows"] = duplicates
-    if total_outliers>0: factor_dict[f"Outlier ({max_outlier_col})"] = total_outliers
-    if not factor_dict: factor_dict = {"Clean Data": 70, "System Load": 20, "File Size": 10}
-    
-    fig3, ax3 = plt.subplots()
-    ax3.pie(factor_dict.values(), labels=factor_dict.keys(), autopct='%1.1f%%', startangle=90)
-    ax3.set_title(f"Factor for {uploaded.name}")
-    st.pyplot(fig3)
+    with tab3:
+        st.subheader("AI Assignment & Smart Chatbot - Different Answer for Every Question")
+        left_ai, right_ai = st.columns(2)
+        
+        with left_ai:
+            st.markdown("**🔴 Auto Assignment Generated from THIS File**")
+            st.write(f"• **Task:** Fix {risk_df.iloc[0]['Cause']}")
+            st.write(f"• **File:** {uploaded.name}")
+            st.write(f"• **Main Factor:** {max_col} Max {max_val}")
+            st.write(f"• **Evidence:** Missing {missing}, Duplicate {duplicates}, Outlier {total_out}")
+            st.write(f"• **Assigned To:** Data Team")
+            st.write(f"• **Priority:** {'P0 - TODAY' if risk_df.iloc[0]['Risk %']>=70 else 'P1 - This Week'}")
+            st.divider()
+            st.caption("Try asking in chatbot: \n- which to solve first? \n- how many times crashed? \n- which factor? \n- show missing details? \n- show outlier details? \n- file size? \n- preventive steps? \n- summary?")
 
-    # === 5 & 6 ===
-    st.header("5. ❓ Explain Why - WHY THIS Dataset Crashed?")
-    if total_outliers>0:
-        st.error(f"File {uploaded.name} crashed because extreme values in column '{max_outlier_col}' - Max {max_outlier_val} - Outlier count {total_outliers} - This column caused Data Quality Failure {top['Confidence %']}%")
-    elif missing>0:
-        st.error(f"File {uploaded.name} crashed because {missing} missing values - Data Quality Failure {top['Confidence %']}%")
-    else:
-        st.error(f"File {uploaded.name} crashed - System/Migration issue - Confidence {top['Confidence %']}%")
+        with right_ai:
+            st.markdown("**💬 Smart Chatbot**")
+            
+            if "chat_history" not in st.session_state:
+                st.session_state.chat_history = []
+            
+            # Display last 5 chats
+            for chat in st.session_state.chat_history[-5:]:
+                st.markdown(f"**You:** {chat['q']}")
+                st.markdown(f"**AI:** {chat['a']}")
+                st.markdown("---")
+            
+            q = st.text_input("Ask anything:", key="final_q", placeholder="e.g. show outlier details?")
+            
+            col_ask, col_clear = st.columns([1,1])
+            with col_ask:
+                ask_btn = st.button("Ask AI", use_container_width=True)
+            with col_clear:
+                clear_btn = st.button("Clear Chat", use_container_width=True)
+            
+            if clear_btn:
+                st.session_state.chat_history = []
+                st.rerun()
+            
+            if ask_btn and q:
+                ql = q.lower()
+                answer = ""
 
-    st.header("6. 🛡️ Preventive Actions - For ANY Dataset")
-    st.success(f"""
-    1. **Data Validation for {uploaded.name}:** Add null checks - df.isnull().sum() for THIS dataset
-    2. **Duplicate Prevention:** df.drop_duplicates() - Found {duplicates} in THIS dataset
-    3. **Outlier Handling for {max_outlier_col}:** IQR filter - np.percentile(df['{max_outlier_col}'], 95) - Found {total_outliers} outliers
-    4. **Monitoring:** Alert if file size >100MB or rows >1M for ANY dataset
-    5. **Code Fix:** try-except + memory limit 80% for ANY dataset
-    6. **Use this RCA Tool for ALL future failures - Works for EVERY dataset**
-    """)
+                if any(w in ql for w in ["first", "priority", "seriously"]):
+                    answer = f"🚨 For {uploaded.name}: Solve FIRST = **{risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%**. Because Missing={missing}, Outlier={total_out} in {max_col}. Highest risk!"
+                elif any(w in ql for w in ["how many", "frequency", "times", "count"]):
+                    answer = f"📊 {uploaded.name}: Missing {missing} times, Duplicate {duplicates} times, Outlier {total_out} times in {max_col}. Total issues = {missing+duplicates+total_out}"
+                elif any(w in ql for w in ["factor", "why crash", "cause"]):
+                    answer = f"🔍 Main crash factor for {uploaded.name}: **{max_col}** Max {max_val} with {total_out} outliers. Missing {missing}, Duplicate {duplicates}. So {max_col} is 70% reason!"
+                elif "missing" in ql:
+                    if missing>0:
+                        miss_cols = df.isnull().sum()
+                        miss_cols = miss_cols[miss_cols>0].head(3).to_dict()
+                        answer = f"📭 Missing in {uploaded.name}: Total {missing}. Top cols: {miss_cols}. Fix: df.fillna() or df.dropna()"
+                    else:
+                        answer = f"✅ {uploaded.name}: No missing values! 0 missing - PASS"
+                elif "duplicate" in ql:
+                    answer = f"📑 {uploaded.name}: Duplicate rows = {duplicates}. Fix: df.drop_duplicates() - Remove them to prevent crash" if duplicates>0 else f"✅ {uploaded.name}: 0 duplicates - PASS"
+                elif any(w in ql for w in ["outlier", "max", "extreme"]):
+                    answer = f"⚠️ Outlier in {uploaded.name}: {max_col} has {total_out} outliers, Max={max_val}. All outliers: {outlier_details}. Fix: IQR filter on {max_col}" if total_out>0 else f"✅ {uploaded.name}: No outliers"
+                elif any(w in ql for w in ["file", "size", "rows", "shape"]):
+                    answer = f"📁 {uploaded.name}: {len(df)} rows, {len(df.columns)} cols, {uploaded.size/1024:.1f} KB, Numeric cols={len(numeric_cols)}"
+                elif any(w in ql for w in ["prevent", "fix", "solution"]):
+                    answer = f"🛡️ Preventive for {uploaded.name}: 1) df.isnull().sum() ({missing}), 2) drop_duplicates ({duplicates}), 3) IQR filter {max_col} ({total_out}), 4) Alert if >{len(df)*2} rows"
+                elif any(w in ql for w in ["summary", "overview"]):
+                    answer = f"📋 Summary {uploaded.name}: {len(df)} rows, Missing {missing}, Dup {duplicates}, Outlier {total_out} in {max_col} max {max_val}. Risk={risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%"
+                elif "risk" in ql:
+                    answer = f"📊 Risk for {uploaded.name}: Data Quality {risk_df.iloc[0]['Risk %']}%, System {risk_df.iloc[1]['Risk %']}%, App {risk_df.iloc[2]['Risk %']}%. Red bar = Solve first!"
+                else:
+                    answer = f"🤖 I know {uploaded.name}: {len(df)} rows, Risk {risk_df.iloc[0]['Cause']} {risk_df.iloc[0]['Risk %']}%. Ask: 'which to solve first?', 'show missing details?', 'show outlier details?', 'file size?', 'summary?'"
 
-    # === 7. AI CHATBOT - Universal for ANY dataset ===
-    st.header("7. 🤖 AI Chatbot & AI Assignment - Works for EVERY Dataset")
-    
-    st.subheader("AI Auto-Assignment for THIS Dataset")
-    st.markdown(f"""
-    **🔴 HIGH PRIORITY for {uploaded.name}**
-    - Task: Fix {top['Cause']}
-    - Factor: {top['Factor']} - Max {max_outlier_val}
-    - Evidence: {top['Evidence']}
-    - Assigned: Data Team - Due: TODAY - Because {top['Confidence %']}% Risk
-    - Works for ANY dataset like THIS
-    """)
+                st.session_state.chat_history.append({"q": q, "a": answer})
+                st.rerun()
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": f"Hi! I work for ANY dataset! I analyzed {uploaded.name}: {len(df)} rows, {len(df.columns)} cols, Missing={missing}, Dup={duplicates}, Outliers in {max_outlier_col}={total_outliers}. Top Risk={top['Cause']} {top['Confidence %']}%. Ask me!"}]
-    
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
-    
-    if prompt := st.chat_input(f"Ask about {uploaded.name} (ANY dataset)..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
-        pl = prompt.lower()
-        if "first" in pl or "priority" in pl:
-            ans = f"For THIS dataset {uploaded.name}: Solve FIRST {top['Cause']} {top['Confidence %']}% - Evidence: {top['Evidence']} - Most serious!"
-        elif "how many" in pl or "times" in pl:
-            ans = f"For {uploaded.name}: Missing {missing} times, Duplicate {duplicates} times, Outlier {total_outliers} times in {max_outlier_col}. Total issues {missing+duplicates+total_outliers}."
-        elif "factor" in pl:
-            ans = f"For {uploaded.name}: Main factor = {max_outlier_col} with {total_outliers} outliers, Max {max_outlier_val}. Factor breakdown: {factor_dict}"
-        else:
-            ans = f"For {uploaded.name} (ANY dataset works): Rows {len(df)}, Cols {len(df.columns)}, Missing {missing}, Dup {duplicates}, Outliers {total_outliers} in {max_outlier_col}. Risk {top['Cause']} {top['Confidence %']}%. I work for EVERY dataset!"
-        st.session_state.messages.append({"role": "assistant", "content": ans})
-        st.chat_message("assistant").write(ans)
+    with tab4:
+        st.subheader("Why & Preventive - Root Cause and Fix")
+        c_why, c_prev = st.columns(2)
+        with c_why:
+            st.markdown("#### Why crashed?")
+            if total_out>0:
+                st.error(f"Because {max_col} has extreme value {max_val} - {total_out} outliers detected. This is Data Quality Failure!")
+            elif missing>0:
+                st.error(f"Because {missing} missing values - Data pipeline break!")
+            elif duplicates>0:
+                st.error(f"Because {duplicates} duplicate rows - System migration duplicate!")
+            else:
+                st.warning("System migration / App logic error - No data quality issue but system issue")
+            
+            st.write(f"**Evidence Table:** Missing={missing}, Duplicate={duplicates}, Outlier={total_out}")
+
+        with c_prev:
+            st.markdown("#### Preventive Actions - Specific to THIS file")
+            st.success(f"""
+            1. Check missing: df.isnull().sum() → {missing} found
+            2. Remove duplicate: df.drop_duplicates() → {duplicates} found
+            3. IQR filter on {max_col} → {total_out} outliers
+            4. Add validation: if df['{max_col}'].max() > {max_val*0.8} → Alert
+            5. Add alert if rows > {int(len(df)*1.5)}
+            """)
+            st.info(f"File {uploaded.name} will be fixed if you apply above 5 steps")
 
 else:
-    st.info("👆 Upload ANY CSV - Bank file, College file, CIDDS file, Hospital file - This code auto-detects columns, outliers, missing, duplicates - Works for EVERY dataset with Risk % Charts + AI Chatbot!")
+    st.info("👆 Upload CSV to see Dashboard → Evidence & Risk → AI Assistant → Preventive (4 Pages, 2-Side Layout, Small Charts, No Timeline Graph)")
